@@ -1,10 +1,13 @@
 #[warn(missing_docs)]
 #[doc = include_str!("../README.md")]
 
+pub mod files;
 pub mod page;
+pub mod sass;
 
 pub struct OreStaty<'a> {
-    handlebars: handlebars::Handlebars<'a>,
+    pub handlebars: handlebars::Handlebars<'a>,
+    pub sass_options: grass::Options<'a>,
     errors: u32,
 }
 
@@ -12,6 +15,7 @@ impl Default for OreStaty<'_> {
     fn default() -> Self {
         Self {
             handlebars: handlebars::Handlebars::new(),
+            sass_options: grass::Options::default(),
             errors: 0,
         }
     }
@@ -37,41 +41,26 @@ pub fn build(generator: &mut OreStaty, path: &std::path::Path, output: &std::pat
     // * Build src
     let src_path = path.join("src");
     if src_path.exists() {
-        generator.build_sources(&src_path, output, std::path::Path::new(""));
+        files::walk_recursively(generator, &src_path, std::path::Path::new(""), &mut |generator, file, path| {
+            generator.build_source(file, &output.join(path).with_extension("html"), path);
+        });
+    }
+
+    // * Build sass/scss
+    let sass_path = path.join("sass");
+    if sass_path.exists() {
+        files::walk_recursively(generator, &sass_path, std::path::Path::new(""), &mut |generator, file, path| {
+            generator.build_sass_source(file, &output.join(path).with_extension("css"));
+        });
     }
 
     // * Copy static
     let static_path = path.join("static");
     if static_path.exists() {
-        if let Err(err) = copy_dir_all(static_path, output) {
+        if let Err(err) = files::copy_recursively(static_path, output) {
             eprintln!("Failed to copy static: {}", err);
         }
     }
-}
-
-// * Utils
-fn copy_dir_all(
-    src: impl AsRef<std::path::Path>,
-    dst: impl AsRef<std::path::Path>,
-) -> std::io::Result<()> {
-    std::fs::create_dir_all(&dst)?;
-    for entry in std::fs::read_dir(src)? {
-        let copy = || -> std::io::Result<()> {
-            let entry = entry?;
-            let ty = entry.file_type()?;
-            if ty.is_dir() {
-                copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
-            } else {
-                std::fs::copy(entry.path(), dst.as_ref().join(entry.file_name()))?;
-            }
-            Ok(())
-        };
-        if let Err(err) = copy() {
-            eprintln!("Failed to copy asset: {}", err);
-            continue;
-        };
-    }
-    Ok(())
 }
 
 #[macro_export]
