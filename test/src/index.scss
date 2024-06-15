@@ -1,5 +1,4 @@
-$font-stack: Helvetica, sans-serif;
-$primary-color: #333;
+@import 'example';
 
 body {
   font: 100% $font-stack;

@@ -2,56 +2,44 @@ use super::*;
 use std::path::Path;
 
 impl OreStaty<'_> {
-    /// Build an HTML page from the file
-    pub fn build_source(&mut self, file: &Path, out_file: &Path, path: &Path) {
+    /// Build an HTML page from the file using Handlebars
+    pub fn build_page(&mut self, src: &Path, dst: &Path, relative_path: &Path) -> Result<(), ()> {
         // * Read
-        macro_rules! source {
-            () => {
-                unwrap_or_error!(
-                    std::fs::read_to_string(file),
-                    self=>err("Failed to read file: {}", err),
-                    return
-                )
-            }
-        }
+        let source = self.unwrap_or_error(std::fs::read_to_string(src), "Failed to read file")?;
 
         // * Build
-        let built = match file.extension() {
-            Some(ext) if ext == "html" || ext == "hbs" => {
-                let source = source!();
-                self.build_html(&source, path).unwrap_or(source)
-            }
-            _ => {
-                eprintln!("Warning: {:?} is not a source file, skipping.", file);
-                return;
-            }
-        };
+        let built = self.unwrap_or_error(
+            self.handlebars.render_template(
+                &source,
+                &serde_json::json!({"path": relative_path.to_string_lossy()}),
+            ),
+            format!("Failed to render {:?} using Handlebars", relative_path),
+        )?;
 
         // * Write
-        let out_dir = unwrap_or_error!(
-            out_file.parent().ok_or(()), self=>_err("Failed to create output directory: No parent path"),
-            return
-        );
-        unwrap_or_error!(
-            std::fs::create_dir_all(out_dir),
-            self=>err("Failed to create output directory: {}", err),
-            ()
-        );
-        unwrap_or_error!(
-            std::fs::write(out_file, built),
-            self=>err("Failed to write built HTML page: {}", err),
-            ()
-        );
-    }
+        if let Ok(out_dir) = self.unwrap_or_error(
+            dst.parent().ok_or("No parent path"),
+            format!(
+                "Failed to create output directory for file {:?}",
+                relative_path
+            ),
+        ) {
+            self.unwrap_or_error(
+                std::fs::create_dir_all(out_dir),
+                format!(
+                    "Failed to create output directory for file {:?}",
+                    relative_path,
+                ),
+            )
+            .ok();
+        }
 
-    /// Build an HTML page from handlebars source
-    pub fn build_html(&mut self, src: &str, path: &Path) -> Option<String> {
-        Some(unwrap_or_error!(
-            self
-                .handlebars
-                .render_template(src, &serde_json::json!({"path": path.to_string_lossy()})),
-            self=>err("Failed to render HTML: {}", err),
-            return None
-        ))
+        self.unwrap_or_error(
+            std::fs::write(dst, built),
+            format!(
+                "Failed to write built HTML page for file {:?}",
+                relative_path
+            ),
+        )
     }
 }

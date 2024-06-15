@@ -2,27 +2,38 @@ use super::*;
 use std::path::Path;
 
 impl OreStaty<'_> {
-    pub fn build_sass_source(&mut self, file: &Path, out_file: &Path) {
-        let built = unwrap_or_error!(
-            grass::from_path(file, &self.sass_options),
-            self=>err("Failed to compile sass: {}", err),
-            return
-        );
+    /// Build an HTML page from the file using Handlebars
+    pub fn build_sass(&mut self, src: &Path, dst: &Path, relative_path: &Path) -> Result<(), ()> {
+        // * Build
+        let built = self.unwrap_or_error(
+            grass::from_path(src, &self.sass_options),
+            format!("Failed to render {:?} using SASS", relative_path),
+        )?;
 
         // * Write
-        let out_dir = unwrap_or_error!(
-            out_file.parent().ok_or(()), self=>_err("Failed to create output directory: No parent path"),
-            return
-        );
-        unwrap_or_error!(
-            std::fs::create_dir_all(out_dir),
-            self=>err("Failed to create output directory: {}", err),
-            ()
-        );
-        unwrap_or_error!(
-            std::fs::write(out_file, built),
-            self=>err("Failed to write built HTML page: {}", err),
-            ()
-        );
+        if let Ok(out_dir) = self.unwrap_or_error(
+            dst.parent().ok_or("No parent path"),
+            format!(
+                "Failed to create output directory for file {:?}",
+                relative_path
+            ),
+        ) {
+            self.unwrap_or_error(
+                std::fs::create_dir_all(out_dir),
+                format!(
+                    "Failed to create output directory for file {:?}",
+                    relative_path,
+                ),
+            )
+            .ok();
+        }
+
+        self.unwrap_or_error(
+            std::fs::write(dst, built),
+            format!(
+                "Failed to write built CSS for file {:?}",
+                relative_path
+            ),
+        )
     }
 }

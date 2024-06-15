@@ -25,10 +25,27 @@ enum Commands {
 fn main() {
     let cli = Cli::parse();
     let path = cli.path.unwrap_or(std::env::current_dir().unwrap());
-    let output = cli.output.unwrap_or(path.join("dist"));
+    let dst = cli.output.unwrap_or(path.join("dist"));
     let mut generator = orestaty::OreStaty::new();
 
-    orestaty::build(&mut generator, &path, &output);
+    if path.join("sass").exists() {
+        generator.sass_options = generator.sass_options.load_path(path.join("sass"));
+    }
+
+    let command = cli.command.unwrap_or(Commands::Build);
+    match command {
+        Commands::Build => {
+            generator.build(&path.join("src"), &dst);
+            if path.join("static").exists() {
+                generator
+                    .unwrap_or_error(
+                        orestaty::files::copy_recursively(path.join("static"), &dst),
+                        "Failed to copy static files",
+                    )
+                    .ok();
+            }
+        }
+    }
 
     // * Check for errors and finish
     if generator.errors() > 0 {
@@ -44,4 +61,3 @@ fn main() {
         std::process::exit(1);
     }
 }
-
