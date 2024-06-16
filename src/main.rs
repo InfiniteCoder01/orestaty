@@ -22,16 +22,34 @@ enum Commands {
     Build,
 }
 
+fn parse_config(path: &std::path::Path) -> Result<orestaty::Config, ()> {
+    if path.exists() {
+        let config = std::fs::read_to_string(path).map_err(|err| {
+            eprintln!("Failed to read config file: {}", err);
+        })?;
+        toml::from_str(&config).map_err(|err| {
+            eprintln!("Failed to parse config file: {}", err);
+        })
+    } else {
+        Err(())
+    }
+}
+
 fn main() {
     let cli = Cli::parse();
     let path = cli.path.unwrap_or(std::env::current_dir().unwrap());
     let dst = cli.output.unwrap_or(path.join("dist"));
-    let mut generator = orestaty::OreStaty::new();
+
+    let config = parse_config(&path.join("config.toml")).unwrap_or_default();
+    let mut generator = orestaty::OreStaty::new(config);
+
     generator.handlebars.set_strict_mode(true);
     generator.register_default_markdown_templates();
 
-    if path.join("sass").exists() {
-        generator.sass_options = generator.sass_options.load_path(path.join("sass"));
+    let plugin_path = path.join("plugins");
+    if plugin_path.exists() {
+        generator.sass_options = generator.sass_options.load_path(&plugin_path);
+        generator.load_plugins(&plugin_path, "").ok();
     }
 
     let command = cli.command.unwrap_or(Commands::Build);

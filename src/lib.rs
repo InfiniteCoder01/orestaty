@@ -2,6 +2,7 @@
 #![doc = include_str!("../README.md")]
 #![allow(clippy::result_unit_err)]
 
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 pub use handlebars;
@@ -13,14 +14,15 @@ pub use pulldown_cmark;
 
 /// File utilities
 pub mod files;
+/// Build HTML page with Markdown
+pub mod markdown;
 /// Build HTML page with Handlebars
 pub mod page;
 /// Build CSS with SASS
 pub mod sass;
-/// Build HTML page with Markdown
-pub mod markdown;
 
 /// Generator struct, see [`Self::build`]
+#[derive(Debug)]
 pub struct OreStaty<'a> {
     /// Handlebars renderer
     pub handlebars: handlebars::Handlebars<'a>,
@@ -28,24 +30,59 @@ pub struct OreStaty<'a> {
     pub sass_options: grass::Options<'a>,
     /// Markdown (Commonmark) rendering options
     pub markdown_options: pulldown_cmark::Options,
+    /// Config
+    pub config: Config,
     errors: u32,
+}
+
+fn default_template() -> String {
+    "default".to_owned()
+}
+
+fn default_markdown_template() -> String {
+    "default_markdown".to_owned()
+}
+
+/// Generator config
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct Config {
+    /// Default tempate
+    #[serde(default = "default_template")]
+    pub default_template: String,
+    /// Default markdown template
+    #[serde(default = "default_markdown_template")]
+    pub default_markdown_template: String,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            default_template: default_template(),
+            default_markdown_template: default_markdown_template(),
+        }
+    }
 }
 
 impl Default for OreStaty<'_> {
     fn default() -> Self {
-        Self {
-            handlebars: handlebars::Handlebars::new(),
-            sass_options: grass::Options::default(),
-            markdown_options: pulldown_cmark::Options::all(),
-            errors: 0,
-        }
+        Self::new(Config::default())
     }
 }
 
 impl OreStaty<'_> {
     /// Create a new generator with default parameters
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(config: Config) -> Self {
+        let mut handlebars = handlebars::Handlebars::new();
+        handlebars
+            .register_template_string("default", "{{{content}}}")
+            .expect("Failed to register default template! Buggy build");
+        Self {
+            handlebars,
+            sass_options: grass::Options::default(),
+            markdown_options: pulldown_cmark::Options::all(),
+            config,
+            errors: 0,
+        }
     }
 
     /// Report an error
@@ -108,7 +145,11 @@ impl OreStaty<'_> {
     }
 
     /// Build a single source file
-    pub fn build_file(&mut self, src: &Path, relative_path: &Path) -> Result<(String, &'static str), ()> {
+    pub fn build_file(
+        &mut self,
+        src: &Path,
+        relative_path: &Path,
+    ) -> Result<(String, &'static str), ()> {
         match src
             .extension()
             .map_or(std::borrow::Cow::Borrowed(""), |ext| ext.to_string_lossy())
@@ -120,7 +161,7 @@ impl OreStaty<'_> {
             "sass" | "scss" | "css" => self
                 .build_sass(src, relative_path)
                 .map(|built| (built, "css")),
-            "md" | "markdown" | "" => self
+            "md" | "markdown" => self
                 .build_markdown(src, relative_path)
                 .map(|built| (built, "html")),
             ext => {
@@ -147,5 +188,57 @@ impl OreStaty<'_> {
             std::fs::write(dst, content),
             format!("Failed to write built HTML page for file {:?}", dst),
         )
+    }
+}
+
+impl OreStaty<'_> {
+    /// Load plugin helpers and templates from specified path. Set scope to an empty string if
+    /// loading from root
+    pub fn load_plugins(&mut self, path: &Path, scope: &str) -> Result<(), ()> {
+        for file in self.unwrap_or_error(
+            std::fs::read_dir(path),
+            format!("Failed to read plugin directory {:?}", path),
+        )? {
+            let Ok(file) = self.unwrap_or_error(file, "Failed to read file") else {
+                continue;
+            };
+
+            let name = file.file_name();
+            let file = file.path();
+            let name = file
+                .file_stem()
+                .unwrap_or(name.as_os_str())
+                .to_string_lossy();
+            let name = if scope.is_empty() {
+                name.into_owned()
+            } else {
+                format!("{}.{}", scope, name)
+            };
+
+            if file.is_file() {
+                match file
+                    .extension()
+                    .map_or(String::new(), |ext| ext.to_string_lossy().into_owned())
+                    .as_str()
+                {
+                    "html" | "htm" | "hbs" => {
+                        let result = self.handlebars.register_template_file(&name, &file);
+                        self.unwrap_or_error(
+                            result,
+                            format!("Failed to register {:?} as Handlebars template", file),
+                        )
+                        .unwrap_or(())
+                    }
+                    // ext => eprintln!(
+                    //     "Warning: {:?} file extension is unknown. Skipping {:?}",
+                    //     ext, file
+                    // ),
+                    _ => (),
+                }
+            } else {
+                self.load_plugins(&file, &name).ok();
+            }
+        }
+        Ok(())
     }
 }

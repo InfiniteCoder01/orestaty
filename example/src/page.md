@@ -1,5 +1,6 @@
 ---
 title: The great page
+template: example.template
 ---
 
 # My awesome webpage

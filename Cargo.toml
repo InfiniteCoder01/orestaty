@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.5.4", features = ["derive"] }
+toml = "0.8.14"
 
 handlebars = { version = "5.1.2", features = ["script_helper"] }
 serde = "1.0.203"
@@ -13,3 +14,4 @@ serde_json = "1.0.117"
 grass = "0.13.3"
 pulldown-cmark = "0.11.0"
 serde_yml = "0.0.10"
+

@@ -2,20 +2,13 @@ use super::*;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-/// Markdown render properties
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct MarkdownRender<'a> {
-    /// Markdown content
-    pub content: &'a str,
-    /// Page metadata
-    pub metadata: Metadata,
-}
-
 /// Markdown page metadata
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Metadata {
     /// Page title
     pub title: Option<String>,
+    /// Page template
+    pub template: Option<String>,
 }
 
 impl OreStaty<'_> {
@@ -54,17 +47,14 @@ impl OreStaty<'_> {
             .unwrap_or_default()
         };
 
-        let content = self.unwrap_or_error(
-            self.handlebars.render(
-                "default_markdown",
-                &MarkdownRender {
-                    content: &content,
-                    metadata,
-                },
-            ),
-            "Failed to render markdown using template",
-        )?;
-        self.render_html(&content, relative_path)
+        self.render_html(
+            &self.config.default_markdown_template.clone(),
+            &content,
+            &serde_json::json!({
+                "metadata": metadata,
+                "path":relative_path,
+            }),
+        )
     }
 
     /// Register default markdown templates
