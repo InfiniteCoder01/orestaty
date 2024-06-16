@@ -4,12 +4,21 @@
 
 use std::path::Path;
 
+pub use handlebars;
+pub use serde;
+pub use serde_json;
+
+pub use grass;
+pub use pulldown_cmark;
+
 /// File utilities
 pub mod files;
 /// Build HTML page with Handlebars
 pub mod page;
 /// Build CSS with SASS
 pub mod sass;
+/// Build HTML page with Markdown
+pub mod markdown;
 
 /// Generator struct, see [`Self::build`]
 pub struct OreStaty<'a> {
@@ -17,6 +26,8 @@ pub struct OreStaty<'a> {
     pub handlebars: handlebars::Handlebars<'a>,
     /// SASS rendering options
     pub sass_options: grass::Options<'a>,
+    /// Markdown (Commonmark) rendering options
+    pub markdown_options: pulldown_cmark::Options,
     errors: u32,
 }
 
@@ -25,6 +36,7 @@ impl Default for OreStaty<'_> {
         Self {
             handlebars: handlebars::Handlebars::new(),
             sass_options: grass::Options::default(),
+            markdown_options: pulldown_cmark::Options::all(),
             errors: 0,
         }
     }
@@ -108,6 +120,9 @@ impl OreStaty<'_> {
             "sass" | "scss" | "css" => self
                 .build_sass(src, relative_path)
                 .map(|built| (built, "css")),
+            "md" | "markdown" | "" => self
+                .build_markdown(src, relative_path)
+                .map(|built| (built, "html")),
             ext => {
                 eprintln!("Warning: {:?} file extension is unknown. Skipping {:?}; Maybe you wanted to put it into \"static\" directory?", ext, src);
                 Err(())

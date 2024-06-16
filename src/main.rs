@@ -27,6 +27,8 @@ fn main() {
     let path = cli.path.unwrap_or(std::env::current_dir().unwrap());
     let dst = cli.output.unwrap_or(path.join("dist"));
     let mut generator = orestaty::OreStaty::new();
+    generator.handlebars.set_strict_mode(true);
+    generator.register_default_markdown_templates();
 
     if path.join("sass").exists() {
         generator.sass_options = generator.sass_options.load_path(path.join("sass"));
