@@ -13,12 +13,15 @@ struct Cli {
     output: Option<PathBuf>,
 
     #[command(subcommand)]
-    command: Option<Commands>,
+    command: Commands,
 }
 
-#[derive(Subcommand)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Subcommand)]
 enum Commands {
-    /// Build the page
+    /// Init a new website in the current directory (override using -p/--path)
+    Init,
+    /// Build the website
+    #[default]
     Build,
 }
 
@@ -40,6 +43,19 @@ fn main() {
     let path = cli.path.unwrap_or(std::env::current_dir().unwrap());
     let dst = cli.output.unwrap_or(path.join("dist"));
 
+    if cli.command == Commands::Init {
+        if let Err(err) = std::fs::create_dir_all(path.join("src")) {
+            eprintln!("Failed to create src directory: {}", err);
+        }
+        if let Err(err) = std::fs::write(
+            path.join("src").join("index.md"),
+            include_str!("templates/index.md"),
+        ) {
+            eprintln!("Failed to create index.md: {}", err);
+        }
+        return;
+    }
+
     let config = parse_config(&path.join("config.toml")).unwrap_or_default();
     let mut generator = orestaty::OreStaty::new(config);
 
@@ -52,8 +68,8 @@ fn main() {
         generator.load_plugins(&plugin_path, "").ok();
     }
 
-    let command = cli.command.unwrap_or(Commands::Build);
-    match command {
+    match cli.command {
+        Commands::Init => unreachable!(),
         Commands::Build => {
             generator.build(&path.join("src"), &dst);
             if path.join("static").exists() {

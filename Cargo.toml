@@ -2,6 +2,18 @@
 name = "orestaty"
 version = "0.1.0"
 edition = "2021"
+authors = ["InfiniteCoder <info@infinitecoder.org>"]
+description = "HTML-centered handlebars-based static site generator"
+repository = "https://github.com/InfiniteCoder01/OreStaty/"
+license = "MIT OR Apache-2.0"
+keywords = ["markdown", "handlebars", "sass", "html"]
+categories = [
+    "command-line-utilities",
+    "parser-implementations",
+    "template-engine",
+    "text-processing",
+    "web-programming",
+]
 
 [dependencies]
 clap = { version = "4.5.4", features = ["derive"] }

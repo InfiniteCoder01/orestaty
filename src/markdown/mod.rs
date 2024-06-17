@@ -60,7 +60,7 @@ impl OreStaty<'_> {
     /// Register default markdown templates
     pub fn register_default_markdown_templates(&mut self) {
         self.handlebars
-            .register_template_string("default_markdown", include_str!("default_template.html"))
+            .register_template_string("default_markdown", include_str!("../templates/markdown_template.html"))
             .expect("Failed to register default markdown template! Buggy build");
     }
 }
