@@ -229,6 +229,16 @@ impl OreStaty<'_> {
                         )
                         .unwrap_or(())
                     }
+                    "rhai" => {
+                        let result = self
+                            .handlebars
+                            .register_script_helper_file(&name.replace('.', "_"), &file);
+                        self.unwrap_or_error(
+                            result,
+                            format!("Failed to register {:?} as Handlebars template", file),
+                        )
+                        .unwrap_or(())
+                    }
                     // ext => eprintln!(
                     //     "Warning: {:?} file extension is unknown. Skipping {:?}",
                     //     ext, file

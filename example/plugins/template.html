@@ -1,8 +1,13 @@
 <!DOCTYPE html>
 <html>
-<head>
-</head>
-<body>
-  {{{ content }}}
-</body>
+  <head>
+    {{#if metadata.title}}
+      <title>{{ metadata.title }}</title>
+    {{else}}
+    {{/if}}
+  </head>
+  <body>
+    <h1>My awesome markdown:</h1>
+    {{{ content }}}
+  </body>
 </html>

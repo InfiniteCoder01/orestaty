@@ -16,6 +16,11 @@ Only "src" directory is mandatory. All files in it are gonna be built (.html/.ht
 All files in "static" directory are gonna be copied to output directory
 In "plugins" directory you can put:
 * Handlebars templates for rendering HTML and Markdown
+* rhai helper scripts for Handlebars
+(see [percent.rhai](https://github.com/InfiniteCoder01/orestaty/blob/master/example/plugins/example/percent.rhai) and
+[page.md](https://github.com/InfiniteCoder01/orestaty/blob/master/example/src/page.md); Note: Handlebars helpers have scope in
+form of `example_percent`, not `example.percent`. Also, in Markdown you might need to escape quotes in string params)
+
 All files in plugins directory get scope. For example, plugins/theme/template.html will be registered as Handlebars template with name `theme.template`
 "plugins" is a load path for SASS (if you put bulma-css into this directory, you can import it with `@import bulma/bulma`).
 
@@ -32,6 +37,7 @@ project_directory
 │  └─robots.txt
 │
 ├─plugins
+│  ├─example.rhai
 │  └─bulma
 │      ├─css
 │      ├─sass
