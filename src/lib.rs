@@ -1,5 +1,6 @@
 #![warn(missing_docs)]
 #![doc = include_str!("../README.md")]
+#![allow(clippy::doc_lazy_continuation)]
 #![allow(clippy::result_unit_err)]
 
 use serde::{Deserialize, Serialize};
@@ -20,6 +21,9 @@ pub mod markdown;
 pub mod page;
 /// Build CSS with SASS
 pub mod sass;
+
+/// Built-in plugins
+pub mod plugins;
 
 /// Generator struct, see [`Self::build`]
 #[derive(Debug)]
@@ -43,6 +47,11 @@ fn default_markdown_template() -> String {
     "default_markdown".to_owned()
 }
 
+#[cfg(feature = "highlighting")]
+fn default_highlight_theme() -> String {
+    "InspiredGitHub".to_owned()
+}
+
 /// Generator config
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Config {
@@ -52,6 +61,11 @@ pub struct Config {
     /// Default markdown template
     #[serde(default = "default_markdown_template")]
     pub default_markdown_template: String,
+
+    #[cfg(feature = "highlighting")]
+    /// Default highlight theme
+    #[serde(default = "default_highlight_theme")]
+    pub default_highlight_theme: String,
 }
 
 impl Default for Config {
@@ -59,6 +73,8 @@ impl Default for Config {
         Self {
             default_template: default_template(),
             default_markdown_template: default_markdown_template(),
+            #[cfg(feature = "highlighting")]
+            default_highlight_theme: default_highlight_theme(),
         }
     }
 }

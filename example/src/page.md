@@ -8,3 +8,7 @@ Some text here
 
 Located at {{ path }}
 Value: {{ example_percent 0.34 label=\"%\" }}
+
+```Rust
+let x = 23;
+```

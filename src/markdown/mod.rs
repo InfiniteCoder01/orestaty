@@ -16,16 +16,21 @@ impl OreStaty<'_> {
     pub fn build_markdown(&mut self, src: &Path, relative_path: &Path) -> Result<String, ()> {
         // * Read
         let source = self.unwrap_or_error(std::fs::read_to_string(src), "Failed to read file")?;
-        let parser = pulldown_cmark::Parser::new_ext(&source, self.markdown_options);
+        let events = pulldown_cmark::Parser::new_ext(&source, self.markdown_options);
+        #[allow(unused_mut)]
+        let mut global_metadata = page::GlobalMetadata {
+            #[cfg(feature = "highlighting")]
+            highlight_theme: self.config.default_highlight_theme.clone(),
+        };
 
         // * Build
         let mut content = String::new();
-        let metadata = {
+        let (events, metadata) = {
             let mut accumulating = false;
             let mut metadata = String::new();
-            pulldown_cmark::html::push_html(
-                &mut content,
-                parser.into_iter().map(|event| {
+            let events = events
+                .into_iter()
+                .inspect(|event| {
                     use pulldown_cmark::{Event, MetadataBlockKind::YamlStyle, Tag, TagEnd};
                     match &event {
                         Event::Start(Tag::MetadataBlock(YamlStyle)) => accumulating = true,
@@ -37,30 +42,43 @@ impl OreStaty<'_> {
                         }
                         _ => (),
                     }
-                    event
-                }),
-            );
-            self.unwrap_or_error(
-                serde_yml::from_str::<Metadata>(&metadata),
-                "Invalid metadata format",
+                })
+                .collect::<Vec<_>>();
+            (
+                events,
+                self.unwrap_or_error(
+                    serde_yml::from_str::<Metadata>(&metadata),
+                    "Invalid metadata format",
+                )
+                .unwrap_or_default(),
             )
-            .unwrap_or_default()
         };
 
+        #[cfg(feature = "highlighting")]
+        let events = highlight_pulldown::highlight_with_theme(
+            events.into_iter(),
+            &global_metadata.highlight_theme,
+        )
+        .unwrap();
+        pulldown_cmark::html::push_html(&mut content, events.into_iter());
         self.render_html(
             &self.config.default_markdown_template.clone(),
             &content,
-            &serde_json::json!({
+            global_metadata,
+            serde_json::json!({
                 "metadata": metadata,
-                "path":relative_path,
+                "path": relative_path,
             }),
         )
     }
 
-    /// Register default markdown templates
-    pub fn register_default_markdown_templates(&mut self) {
+    /// Register default markdown template
+    pub fn register_default_markdown_template(&mut self) {
         self.handlebars
-            .register_template_string("default_markdown", include_str!("../templates/markdown_template.html"))
+            .register_template_string(
+                "default_markdown",
+                include_str!("../templates/markdown_template.html"),
+            )
             .expect("Failed to register default markdown template! Buggy build");
     }
 }

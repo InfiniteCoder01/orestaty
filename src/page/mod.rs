@@ -2,33 +2,43 @@ use super::*;
 use serde::Serialize;
 use std::path::Path;
 
+/// Markdown page metadata
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct GlobalMetadata {
+    #[cfg(feature = "highlighting")]
+    /// Highlight theme
+    pub highlight_theme: String,
+}
+
 impl OreStaty<'_> {
     /// Render HTML template using Handlebars
     pub fn render_html<T: Serialize>(
         &mut self,
         template: &str,
         content: &str,
+        global_metadata: GlobalMetadata,
         params: T,
     ) -> Result<String, ()> {
         #[derive(Debug, Serialize)]
-        struct Page<'a, T: Serialize> {
+        struct Page<T: Serialize> {
             #[serde(flatten)]
             params: T,
-            content: &'a str,
+            content: String,
+            global_metadata: GlobalMetadata,
         }
 
+        let mut page = Page {
+            params,
+            content: String::new(),
+            global_metadata,
+        };
         let content = self.unwrap_or_error(
-            self.handlebars.render_template(content, &params),
+            self.handlebars.render_template(content, &page),
             "Failed to render page using Handlebars",
         )?;
+        page.content = content;
         self.unwrap_or_error(
-            self.handlebars.render(
-                template,
-                &Page {
-                    params,
-                    content: &content,
-                },
-            ),
+            self.handlebars.render(template, &page),
             format!("Failed to render page using template {:?}", template),
         )
     }
@@ -39,6 +49,10 @@ impl OreStaty<'_> {
         self.render_html(
             &self.config.default_template.clone(),
             &source,
+            GlobalMetadata {
+                #[cfg(feature = "highlighting")]
+                highlight_theme: self.config.default_highlight_theme.clone(),
+            },
             serde_json::json!({
                 "path": relative_path.to_string_lossy().into_owned(),
             }),

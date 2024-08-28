@@ -60,7 +60,8 @@ fn main() {
     let mut generator = orestaty::OreStaty::new(config);
 
     generator.handlebars.set_strict_mode(true);
-    generator.register_default_markdown_templates();
+    generator.register_default_markdown_template();
+    generator.register_builtin_plugins();
 
     let plugin_path = path.join("plugins");
     if plugin_path.exists() {
