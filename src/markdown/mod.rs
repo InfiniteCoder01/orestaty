@@ -9,6 +9,9 @@ pub struct Metadata {
     pub title: Option<String>,
     /// Page template
     pub template: Option<String>,
+    #[cfg(feature = "highlighting")]
+    /// Highlight theme
+    pub highlight_theme: Option<String>,
 }
 
 impl OreStaty<'_> {
@@ -53,6 +56,11 @@ impl OreStaty<'_> {
                 .unwrap_or_default(),
             )
         };
+
+        #[cfg(feature = "highlighting")]
+        if let Some(theme) = &metadata.highlight_theme {
+            global_metadata.highlight_theme = theme.clone();
+        }
 
         #[cfg(feature = "highlighting")]
         let events = highlight_pulldown::highlight_with_theme(

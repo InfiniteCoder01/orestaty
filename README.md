@@ -56,4 +56,5 @@ Here is an example showcasing all possible config options:
 ```toml
 default_template = "template"
 default_markdown_template = "template"
+default_highlight_theme = "template"
 ```
