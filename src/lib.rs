@@ -25,17 +25,21 @@ pub mod sass;
 /// Built-in plugins
 pub mod plugins;
 
+type ArcMutex<T> = std::sync::Arc<std::sync::Mutex<T>>;
+
 /// Generator struct, see [`Self::build`]
 #[derive(Debug)]
 pub struct OreStaty<'a> {
     /// Handlebars renderer
     pub handlebars: handlebars::Handlebars<'a>,
+    /// Syntax highlighting context
+    pub syntax_highlighting: ArcMutex<plugins::syntax_highlighting::SyntaxHighlighting>,
     /// SASS rendering options
     pub sass_options: grass::Options<'a>,
     /// Markdown (Commonmark) rendering options
     pub markdown_options: pulldown_cmark::Options,
     /// Config
-    pub config: Config,
+    config: Config,
     errors: u32,
 }
 
@@ -47,9 +51,8 @@ fn default_markdown_template() -> String {
     "default_markdown".to_owned()
 }
 
-#[cfg(feature = "highlighting")]
 fn default_highlight_theme() -> String {
-    "InspiredGitHub".to_owned()
+    "css-classed".to_owned()
 }
 
 /// Generator config
@@ -62,10 +65,9 @@ pub struct Config {
     #[serde(default = "default_markdown_template")]
     pub default_markdown_template: String,
 
-    #[cfg(feature = "highlighting")]
     /// Default highlight theme
     #[serde(default = "default_highlight_theme")]
-    pub default_highlight_theme: String,
+    pub code_highlight_theme: String,
 }
 
 impl Default for Config {
@@ -73,32 +75,44 @@ impl Default for Config {
         Self {
             default_template: default_template(),
             default_markdown_template: default_markdown_template(),
-            #[cfg(feature = "highlighting")]
-            default_highlight_theme: default_highlight_theme(),
+            code_highlight_theme: default_highlight_theme(),
         }
     }
 }
 
 impl Default for OreStaty<'_> {
     fn default() -> Self {
-        Self::new(Config::default())
+        Self::new(Config::default(), "".as_ref())
     }
 }
 
 impl OreStaty<'_> {
     /// Create a new generator with default parameters
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: Config, root_path: &Path) -> Self {
         let mut handlebars = handlebars::Handlebars::new();
         handlebars
             .register_template_string("default", "{{{content}}}")
             .expect("Failed to register default template! Buggy build");
         Self {
             handlebars,
+            syntax_highlighting: ArcMutex::new(
+                plugins::syntax_highlighting::SyntaxHighlighting::new(
+                    &config.code_highlight_theme,
+                    root_path,
+                )
+                .unwrap_or_default()
+                .into(),
+            ),
             sass_options: grass::Options::default(),
             markdown_options: pulldown_cmark::Options::all(),
             config,
             errors: 0,
         }
+    }
+
+    /// Get config of the generator
+    pub fn config(&self) -> &Config {
+        &self.config
     }
 
     /// Report an error

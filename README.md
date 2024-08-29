@@ -6,7 +6,9 @@ Look at [main.rs](https://github.com/InfiniteCoder01/orestaty/blob/master/src/ma
 
 ## CLI
 Subcommands:
+* init
 * build (assumed by default)
+* theme-to-css <theme> [-o/--output output.css]
 Flags:
 * -p/--path - specify project path (current directory by default)
 * -o/--output - specify output directory (dist by defalt)
@@ -56,5 +58,11 @@ Here is an example showcasing all possible config options:
 ```toml
 default_template = "template"
 default_markdown_template = "template"
-default_highlight_theme = "template"
+code_highlight_theme = "InspiredGitHub"
 ```
+
+# TODO
+Some stuff to do:
+- Dev server with file watching
+- Cache stuff
+- Parallelization

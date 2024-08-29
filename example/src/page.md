@@ -6,7 +6,7 @@ template: template
 # My awesome webpage
 Some text here
 
-Located at {{ path }}
+Located at {{ page.path }}
 Value: {{ example_percent 0.34 label=\"%\" }}
 
 ```Rust

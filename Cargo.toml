@@ -8,16 +8,12 @@ repository = "https://github.com/InfiniteCoder01/OreStaty/"
 license = "MIT OR Apache-2.0"
 keywords = ["markdown", "handlebars", "sass", "html"]
 categories = [
-	"command-line-utilities",
-	"parser-implementations",
-	"template-engine",
-	"text-processing",
-	"web-programming",
+    "command-line-utilities",
+    "parser-implementations",
+    "template-engine",
+    "text-processing",
+    "web-programming",
 ]
-
-[features]
-highlighting = ["dep:syntect", "dep:highlight-pulldown"]
-default = ["highlighting"]
 
 [dependencies]
 clap = { version = "4.0", features = ["derive"] }
@@ -31,5 +27,5 @@ grass = "0.13"
 pulldown-cmark = "0.11"
 serde_yml = "0.0"
 
-syntect = { version = "5.1", optional = true }
-highlight-pulldown = { git = "https://gitlab.com/InfiniteCoder01/highlight-pulldown.git", optional = true }
+syntect = "5.1"
+unindent = "0.2.3"

@@ -2,12 +2,11 @@ use super::*;
 use serde::Serialize;
 use std::path::Path;
 
-/// Markdown page metadata
-#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct GlobalMetadata {
-    #[cfg(feature = "highlighting")]
-    /// Highlight theme
-    pub highlight_theme: String,
+/// Information about the processed page that gets sent to template as `page`
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+pub struct PageData<'a> {
+    /// Path of the page
+    pub path: &'a std::path::Path,
 }
 
 impl OreStaty<'_> {
@@ -16,27 +15,32 @@ impl OreStaty<'_> {
         &mut self,
         template: &str,
         content: &str,
-        global_metadata: GlobalMetadata,
+        page_data: PageData,
         params: T,
     ) -> Result<String, ()> {
         #[derive(Debug, Serialize)]
-        struct Page<T: Serialize> {
+        struct Page<'a, T: Serialize> {
             #[serde(flatten)]
             params: T,
-            content: String,
-            global_metadata: GlobalMetadata,
+            page: PageData<'a>,
         }
 
-        let mut page = Page {
+        #[derive(Debug, Serialize)]
+        struct PageWithContent<'a, T: Serialize> {
+            #[serde(flatten)]
+            page: Page<'a, T>,
+            content: String,
+        }
+
+        let page = Page {
             params,
-            content: String::new(),
-            global_metadata,
+            page: page_data,
         };
         let content = self.unwrap_or_error(
             self.handlebars.render_template(content, &page),
             "Failed to render page using Handlebars",
         )?;
-        page.content = content;
+        let page = PageWithContent { page, content };
         self.unwrap_or_error(
             self.handlebars.render(template, &page),
             format!("Failed to render page using template {:?}", template),
@@ -49,13 +53,10 @@ impl OreStaty<'_> {
         self.render_html(
             &self.config.default_template.clone(),
             &source,
-            GlobalMetadata {
-                #[cfg(feature = "highlighting")]
-                highlight_theme: self.config.default_highlight_theme.clone(),
+            PageData {
+                path: relative_path,
             },
-            serde_json::json!({
-                "path": relative_path.to_string_lossy().into_owned(),
-            }),
+            (),
         )
     }
 }

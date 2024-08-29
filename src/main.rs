@@ -8,7 +8,7 @@ struct Cli {
     #[arg(short, long)]
     path: Option<PathBuf>,
 
-    /// Output path, ${path}/dist
+    /// Output path, defaults to <path>/dist
     #[arg(short, long)]
     output: Option<PathBuf>,
 
@@ -16,13 +16,21 @@ struct Cli {
     command: Commands,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Subcommand)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Subcommand)]
 enum Commands {
     /// Init a new website in the current directory (override using -p/--path)
     Init,
     /// Build the website
     #[default]
     Build,
+    /// Generate .css file from a colorscheme
+    ThemeToCSS {
+        /// Theme name or path to .tmTheme
+        theme: String,
+        /// Output path, defaults to <theme-name>.css
+        #[arg(long, short)]
+        output: Option<PathBuf>,
+    },
 }
 
 fn parse_config(path: &std::path::Path) -> Result<orestaty::Config, ()> {
@@ -55,9 +63,28 @@ fn main() {
         }
         return;
     }
+    if let Commands::ThemeToCSS { theme, output } = cli.command {
+        if let Some(syntax_highlighting) =
+            orestaty::plugins::syntax_highlighting::SyntaxHighlighting::new(&theme, "".as_ref())
+        {
+            if let Some(css) = syntax_highlighting.export_theme() {
+                let path = output.unwrap_or_else(|| {
+                    if theme.ends_with(".light") || theme.ends_with(".dark") {
+                        std::path::PathBuf::from(format!("{theme}.css"))
+                    } else {
+                        std::path::Path::new(&theme).with_extension("css")
+                    }
+                });
+                if let Err(err) = std::fs::write(path, css) {
+                    eprintln!("Failed to write theme to a file: {}", err);
+                }
+            }
+        }
+        return;
+    }
 
     let config = parse_config(&path.join("config.toml")).unwrap_or_default();
-    let mut generator = orestaty::OreStaty::new(config);
+    let mut generator = orestaty::OreStaty::new(config, &path);
 
     generator.handlebars.set_strict_mode(true);
     generator.register_default_markdown_template();
@@ -70,7 +97,6 @@ fn main() {
     }
 
     match cli.command {
-        Commands::Init => unreachable!(),
         Commands::Build => {
             generator.build(&path.join("src"), &dst);
             if path.join("static").exists() {
@@ -82,6 +108,7 @@ fn main() {
                     .ok();
             }
         }
+        _ => unreachable!(),
     }
 
     // * Check for errors and finish

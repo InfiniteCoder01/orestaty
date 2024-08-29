@@ -9,9 +9,6 @@ pub struct Metadata {
     pub title: Option<String>,
     /// Page template
     pub template: Option<String>,
-    #[cfg(feature = "highlighting")]
-    /// Highlight theme
-    pub highlight_theme: Option<String>,
 }
 
 impl OreStaty<'_> {
@@ -20,26 +17,23 @@ impl OreStaty<'_> {
         // * Read
         let source = self.unwrap_or_error(std::fs::read_to_string(src), "Failed to read file")?;
         let events = pulldown_cmark::Parser::new_ext(&source, self.markdown_options);
-        #[allow(unused_mut)]
-        let mut global_metadata = page::GlobalMetadata {
-            #[cfg(feature = "highlighting")]
-            highlight_theme: self.config.default_highlight_theme.clone(),
-        };
 
         // * Build
         let mut content = String::new();
         let (events, metadata) = {
-            let mut accumulating = false;
+            let mut accumulating_metadata = false;
             let mut metadata = String::new();
             let events = events
                 .into_iter()
                 .inspect(|event| {
                     use pulldown_cmark::{Event, MetadataBlockKind::YamlStyle, Tag, TagEnd};
                     match &event {
-                        Event::Start(Tag::MetadataBlock(YamlStyle)) => accumulating = true,
-                        Event::End(TagEnd::MetadataBlock(YamlStyle)) => accumulating = false,
+                        Event::Start(Tag::MetadataBlock(YamlStyle)) => accumulating_metadata = true,
+                        Event::End(TagEnd::MetadataBlock(YamlStyle)) => {
+                            accumulating_metadata = false
+                        }
                         Event::Text(text) => {
-                            if accumulating {
+                            if accumulating_metadata {
                                 metadata.push_str(text);
                             }
                         }
@@ -57,22 +51,16 @@ impl OreStaty<'_> {
             )
         };
 
-        #[cfg(feature = "highlighting")]
-        if let Some(theme) = &metadata.highlight_theme {
-            global_metadata.highlight_theme = theme.clone();
-        }
-
-        #[cfg(feature = "highlighting")]
-        let events = highlight_pulldown::highlight_with_theme(
-            events.into_iter(),
-            &global_metadata.highlight_theme,
-        )
-        .unwrap();
-        pulldown_cmark::html::push_html(&mut content, events.into_iter());
+        let syntax_highlighting = self.syntax_highlighting.try_lock().unwrap();
+        let events = syntax_highlighting.highlight_markdown(events);
+        pulldown_cmark::html::push_html(&mut content, events);
+        drop(syntax_highlighting);
         self.render_html(
             &self.config.default_markdown_template.clone(),
             &content,
-            global_metadata,
+            page::PageData {
+                path: relative_path,
+            },
             serde_json::json!({
                 "metadata": metadata,
                 "path": relative_path,
